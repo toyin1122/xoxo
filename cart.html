@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Cart - XOXOCHIC BEAUTY</title>
+  <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@7.0.1/css/all.min.css" integrity="sha384-..." crossorigin="anonymous" referrerpolicy="no-referrer" />
+  <style>
+    /* Quick styling for table layout */
+    table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
+    th, td { border: 1px solid #ddd; padding: 8px; text-align: center; }
+    th { background: #f8cdda; color: #333; }
+    .cart-summary input { width: 100%; padding: 8px; margin-bottom: 10px; }
+    .checkout-btn { padding: 10px 20px; background: #ff69b4; color: white; border: none; cursor: pointer; font-size: 1rem; }
+    .checkout-btn:hover { background: #ff1493; }
+    .remove-btn { padding: 4px 8px; background: #ff6b6b; color: white; border: none; cursor: pointer; }
+  </style>
+</head>
+<body>
+  <nav class="navbar">
+    <div class="logo">XOXOCHIC BEAUTY</div>
+    <ul class="nav-links">
+      <li><a href="index.html">Home</a></li>
+      <li><a href="products.html">Products</a></li>
+      <li><a href="about.html">About</a></li>
+      <li><a href="contact.html">Contact</a></li>
+      <li>
+        <a href="cart.html">
+          <i class="fas fa-shopping-cart"></i>
+          <span id="cart-count" class="cart-count">0</span>
+        </a>
+      </li>
+    </ul>
+  </nav>
+
+  <section class="cart">
+    <h2>Your Cart 💖</h2>
+
+    <table id="cart-table">
+      <thead>
+        <tr>
+          <th>Product</th>
+          <th>Qty</th>
+          <th>Price</th>
+          <th>Subtotal</th>
+          <th>Action</th>
+        </tr>
+      </thead>
+      <tbody id="cart-items">
+        <!-- Cart items will appear here dynamically -->
+      </tbody>
+      <tfoot>
+        <tr>
+          <td colspan="3"><strong>Total</strong></td>
+          <td colspan="2">₦<span id="cart-total">0</span></td>
+        </tr>
+      </tfoot>
+    </table>
+
+    <div class="cart-summary">
+      <h3>Delivery Info</h3>
+      <input type="text" id="user-name" placeholder="Enter your name" required>
+      <input type="email" id="user-email" placeholder="Enter your email 💕" required>
+      <input type="text" id="user-address" placeholder="Enter your delivery address 🏠" required>
+      <button id="checkout-btn" class="checkout-btn">Pay Now 💳</button>
+    </div>
+  </section>
+
+  <footer>
+    <p>&copy; 2025 XOXOCHIC BEAUTY. All rights reserved.</p>
+    <div class="social-links">
+      <a href="#"><i class="fab fa-instagram"></i></a>
+      <a href="#"><i class="fab fa-tiktok"></i></a>
+      <a href="#"><i class="fab fa-twitter"></i></a>
+    </div>
+  </footer>
+
+  <!-- Paystack -->
+  <script src="https://js.paystack.co/v1/inline.js"></script>
+ <script>
+  // =======================
+  // 💖 XOXOChic Cart & Orders
+  // =======================
+
+  // Load cart and orders from localStorage
+  let cart = JSON.parse(localStorage.getItem('cart')) || [];
+  let orders = JSON.parse(localStorage.getItem('orders')) || [];
+
+  // Update Cart Display
+  function updateCartDisplay() {
+    const cartItems = document.getElementById('cart-items');
+    const cartTotal = document.getElementById('cart-total');
+    const cartCount = document.getElementById('cart-count');
+    let total = 0;
+
+    if (cartCount) cartCount.textContent = cart.length;
+
+    if (cartItems) {
+      cartItems.innerHTML = '';
+      if (cart.length === 0) {
+        cartItems.innerHTML = `<tr><td colspan="5">Your cart is empty 💔</td></tr>`;
+      } else {
+        cart.forEach((item, index) => {
+          const qty = item.quantity || 1;
+          const price = parseInt(item.price, 10);
+          const subtotal = price * qty;
+          total += subtotal;
+          const row = document.createElement('tr');
+          row.innerHTML = `
+            <td>${item.name}</td>
+            <td>${qty}</td>
+            <td>₦${price.toLocaleString()}</td>
+            <td>₦${subtotal.toLocaleString()}</td>
+            <td><button class="remove-btn" onclick="removeFromCart(${index})">Remove</button></td>
+          `;
+          cartItems.appendChild(row);
+        });
+      }
+      if (cartTotal) cartTotal.textContent = total.toLocaleString();
+    }
+
+    localStorage.setItem('cart', JSON.stringify(cart));
+  }
+
+  // Add item to cart
+  function addToCart(name, price) {
+    const intPrice = parseInt(price, 10);
+    if (isNaN(intPrice)) return;
+
+    const existingIndex = cart.findIndex(i => i.name === name);
+    if (existingIndex > -1) {
+      cart[existingIndex].quantity = (cart[existingIndex].quantity || 1) + 1;
+    } else {
+      cart.push({ name, price: intPrice, quantity: 1 });
+    }
+
+    updateCartDisplay();
+    alert(`${name} added to cart 💖`);
+  }
+
+  // Remove item from cart
+  function removeFromCart(index) {
+    if (index >= 0 && index < cart.length) {
+      cart.splice(index, 1);
+      updateCartDisplay();
+    }
+  }
+
+  // Save order (Cash on Delivery or after Paystack)
+  function saveOrder(paid) {
+    const name = document.getElementById('user-name')?.value;
+    const email = document.getElementById('user-email')?.value;
+    const address = document.getElementById('user-address')?.value;
+
+    if (!name || !email || !address || cart.length === 0) {
+      alert("Please fill all fields and ensure cart is not empty 💕");
+      return null;
+    }
+
+    const total = cart.reduce((sum, item) => sum + parseInt(item.price, 10) * (item.quantity || 1), 0);
+
+    const order = {
+      id: Date.now(),
+      name,
+      email,
+      address,
+      items: JSON.parse(JSON.stringify(cart)),
+      total,
+      paid: paid // true if paid via Paystack, false if Cash on Delivery
+    };
+
+    orders.push(order);
+    localStorage.setItem('orders', JSON.stringify(orders));
+
+    cart = [];
+    updateCartDisplay();
+
+    // Clear form
+    document.getElementById('user-name').value = '';
+    document.getElementById('user-email').value = '';
+    document.getElementById('user-address').value = '';
+
+    return order;
+  }
+
+  // Cash on Delivery checkout
+  function checkoutCOD() {
+    const order = saveOrder(false);
+    if (order) alert(`Order received 💖! It will be delivered to:\n${order.address}`);
+  }
+
+  // Paystack checkout
+  function checkoutPaystack() {
+    const name = document.getElementById('user-name')?.value;
+    const email = document.getElementById('user-email')?.value;
+    const address = document.getElementById('user-address')?.value;
+
+    const total = cart.reduce((sum, item) => sum + parseInt(item.price, 10) * (item.quantity || 1), 0);
+
+    if (!name || !email || !address || cart.length === 0) {
+      alert("Please fill all fields and ensure cart is not empty 💕");
+      return;
+    }
+
+    const handler = PaystackPop.setup({
+      key: 'pk_test_34b308a05c2c0d7b94de7574fd2ced2316a424bc',
+      email: email,
+      amount: total * 100,
+      currency: 'NGN',
+      metadata: {
+        custom_fields: [
+          { display_name: "Name", value: name },
+          { display_name: "Address", value: address }
+        ]
+      },
+      callback: function(response) {
+        saveOrder(true); // mark as paid
+        alert(`Payment successful 💖\nRef: ${response.reference}`);
+      },
+      onClose: function() {
+        alert("Payment cancelled 😢");
+      }
+    });
+
+    handler.openIframe();
+  }
+
+  // Initialize
+  document.addEventListener('DOMContentLoaded', () => {
+    updateCartDisplay();
+
+    // Add to cart buttons
+    document.addEventListener('click', (e) => {
+      if (e.target.classList.contains('add-to-cart')) {
+        const name = e.target.dataset.name;
+        const price = e.target.dataset.price;
+        addToCart(name, price);
+      }
+    });
+
+    // Checkout buttons
+    const checkoutBtn = document.getElementById('checkout-btn');
+    if (checkoutBtn) checkoutBtn.addEventListener('click', checkoutPaystack);
+
+    // Optionally, if you want Cash on Delivery:
+    const codBtn = document.getElementById('cod-btn');
+    if (codBtn) codBtn.addEventListener('click', checkoutCOD);
+  });
+</script>
